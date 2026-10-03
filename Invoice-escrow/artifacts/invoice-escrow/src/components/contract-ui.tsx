@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { useAccount, useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
+import { toast } from 'sonner';
 import { getContractErrorMessage } from '../lib/contract-errors';
 import type { ContractBundle, WriteRequest } from '../contract-adapter';
 
@@ -36,6 +37,32 @@ export function fromUnits(value: bigint | undefined, decimals = 6): string {
   return frac ? `${whole}.${frac}` : `${whole}`;
 }
 
+/** Explorer URL for the chain a bundle is deployed on. */
+export function explorerTxUrl(bundle: ContractBundle | null, hash: string): string {
+  const base =
+    bundle?.chain.blockExplorers?.default.url ??
+    (bundle?.chain.id === 46630 ? 'https://explorer.testnet.chain.robinhood.com' : 'https://sepolia-rollup.arbitrum.io');
+  return `${base.replace(/\/$/, '')}/tx/${hash}`;
+}
+
+export function explorerAddressUrl(bundle: ContractBundle | null, address: string): string {
+  const base =
+    bundle?.chain.blockExplorers?.default.url ??
+    (bundle?.chain.id === 46630 ? 'https://explorer.testnet.chain.robinhood.com' : 'https://sepolia-rollup.arbitrum.io');
+  return `${base.replace(/\/$/, '')}/address/${address}`;
+}
+
+/** Human countdown such as \"in 6d 4h\" or \"12d ago\". */
+export function until(timestampSeconds: number, nowMs: number): string {
+  const delta = timestampSeconds * 1000 - nowMs;
+  const abs = Math.abs(delta);
+  const d = Math.floor(abs / 86400000);
+  const h = Math.floor((abs % 86400000) / 3600000);
+  const m = Math.floor((abs % 3600000) / 60000);
+  const text = d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m}m` : `${m}m`;
+  return delta >= 0 ? `in ${text}` : `${text} ago`;
+}
+
 export function useNow(intervalMs = 15_000): number {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -47,7 +74,7 @@ export function useNow(intervalMs = 15_000): number {
 
 /** Submit a write request through the connected wallet, with decoded revert messages. */
 export function useContractWrite() {
-  const { writeContractAsync, data: hash } = useWriteContract();
+  const { writeContractAsync, data: hash, isError } = useWriteContract();
   const { isLoading: isPending, isSuccess } = useWaitForTransactionReceipt({ hash });
   const [error, setError] = useState<string | null>(null);
 
@@ -55,16 +82,28 @@ export function useContractWrite() {
     if (!request) return;
     setError(null);
     try {
-      await writeContractAsync({
+      const hash = await writeContractAsync({
         address: request.address,
         abi: request.abi,
         functionName: request.functionName,
         args: request.args as never,
       });
+      toast.loading(`Submitted ${request.functionName}`, { id: hash });
+      return hash;
     } catch (err) {
-      setError(getContractErrorMessage(err));
+      const message = getContractErrorMessage(err);
+      setError(message);
+      toast.error(message);
+      return undefined;
     }
   }
+
+  // Replace the pending toast once the transaction is mined or reverted.
+  useEffect(() => {
+    if (!hash) return;
+    if (isSuccess) toast.success('Confirmed', { id: hash });
+    else if (isError) toast.error('Transaction reverted', { id: hash });
+  }, [hash, isSuccess, isError]);
 
   return { submit, hash, isPending: isPending || (!!hash && !isSuccess), error, clearError: () => setError(null) };
 }
@@ -110,12 +149,37 @@ export function WriteButton({
   );
 }
 
-export function TxLink({ txHash }: { txHash: `0x${string}` | undefined }) {
+export function TxLink({ txHash, bundle }: { txHash: `0x${string}` | undefined; bundle?: ContractBundle | null }) {
   if (!txHash) return <span>—</span>;
   return (
-    <a href={`https://sepolia-rollup.arbitrum.io/tx/${txHash}`} target="_blank" rel="noreferrer">
+    <a href={explorerTxUrl(bundle ?? null, txHash)} target="_blank" rel="noreferrer">
       {txHash.slice(0, 10)}…
     </a>
+  );
+}
+
+/** Address with an explorer link and a copy-to-clipboard affordance. */
+export function AddressLink({ address, bundle }: { address: string | undefined; bundle?: ContractBundle | null }) {
+  const [copied, setCopied] = useState(false);
+  if (!address) return <span>—</span>;
+  return (
+    <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+      <a href={explorerAddressUrl(bundle ?? null, address)} target="_blank" rel="noreferrer">
+        {short(address)}
+      </a>
+      <button
+        className="button-secondary"
+        style={{ padding: '2px 6px', fontSize: 11 }}
+        title="Copy address"
+        onClick={() => {
+          void navigator.clipboard?.writeText(address);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1200);
+        }}
+      >
+        {copied ? 'copied' : 'copy'}
+      </button>
+    </span>
   );
 }
 

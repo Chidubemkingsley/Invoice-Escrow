@@ -323,6 +323,61 @@ export const writes = {
     args: [assets, owner, owner],
   }),
 
+  pauseEscrow: (bundle: ContractBundle): WriteRequest => ({
+    address: bundle.addresses.escrow,
+    abi: abis.escrow,
+    functionName: 'pause',
+    args: [],
+  }),
+
+  unpauseEscrow: (bundle: ContractBundle): WriteRequest => ({
+    address: bundle.addresses.escrow,
+    abi: abis.escrow,
+    functionName: 'unpause',
+    args: [],
+  }),
+
+  pausePool: (bundle: ContractBundle): WriteRequest => ({
+    address: bundle.addresses.pool,
+    abi: abis.pool,
+    functionName: 'pause',
+    args: [],
+  }),
+
+  unpausePool: (bundle: ContractBundle): WriteRequest => ({
+    address: bundle.addresses.pool,
+    abi: abis.pool,
+    functionName: 'unpause',
+    args: [],
+  }),
+
+  setFee: (bundle: ContractBundle, feeBps: number, recipient: Address): WriteRequest => ({
+    address: bundle.addresses.escrow,
+    abi: abis.escrow,
+    functionName: 'setFee',
+    args: [feeBps, recipient],
+  }),
+
+  setParams: (
+    bundle: ContractBundle,
+    params: {
+      baseAprBps: number;
+      minDiscountBps: number;
+      maxDiscountBps: number;
+      newcomerPremiumBps: number;
+      riskSlopeBps: number;
+      utilizationCapBps: number;
+      concentrationCapBps: number;
+      minHistory: number;
+      maxTenor: number;
+    },
+  ): WriteRequest => ({
+    address: bundle.addresses.pool,
+    abi: abis.pool,
+    functionName: 'setParams',
+    args: [params],
+  }),
+
   sweepDeferred: (bundle: ContractBundle, to: Address): WriteRequest => ({
     address: bundle.addresses.pool,
     abi: abis.pool,

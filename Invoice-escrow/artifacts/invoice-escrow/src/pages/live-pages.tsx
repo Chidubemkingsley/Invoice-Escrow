@@ -26,6 +26,7 @@ import {
   useInvoice,
   useInvoices,
   useNextInvoiceId,
+  usePageTitle,
   usePoolState,
   useQuote,
   useReputation,
@@ -33,16 +34,20 @@ import {
   type InvoiceRow,
 } from '../hooks/useEscrowData';
 import {
+  AddressLink,
   ErrorNote,
+  explorerTxUrl,
   fromUnits,
   Loading,
   Metric,
   pct,
   short,
   toUnits,
+  until,
   useNow,
   usd,
   WriteButton,
+  TxLink,
 } from '../components/contract-ui';
 
 type PageShellProps = { children: React.ReactNode; route: string; action?: React.ReactNode };
@@ -104,6 +109,7 @@ function nextAction(row: InvoiceRow, account: string | undefined): string {
 /* ------------------------------------------------------------------ overview */
 
 export function OverviewPage() {
+  usePageTitle('Overview');
   const { bundle } = useContracts();
   const pool = usePoolState(bundle);
   const invoices = useInvoices(bundle);
@@ -147,7 +153,7 @@ export function OverviewPage() {
         <h2>Protocol activity</h2>
         <span>LIVE EVENTS</span>
       </div>
-      <EventTable events={activity.data ?? []} loading={activity.isLoading} />
+      <EventTable events={activity.data ?? []} loading={activity.isLoading} bundle={bundle} />
     </PageShell>
   );
 }
@@ -155,6 +161,7 @@ export function OverviewPage() {
 /* ----------------------------------------------------------------- dashboard */
 
 export function DashboardPage() {
+  usePageTitle('My dashboard');
   const { bundle } = useContracts();
   const account = useAccountAddress();
   const invoices = useInvoices(bundle);
@@ -227,6 +234,7 @@ export function DashboardPage() {
 /* -------------------------------------------------------------------- create */
 
 export function CreatePage() {
+  usePageTitle('New invoice');
   const { bundle } = useContracts();
   const account = useAccountAddress();
   const [buyer, setBuyer] = useState('');
@@ -346,6 +354,7 @@ export function CreatePage() {
 /* -------------------------------------------------------------------- market */
 
 export function MarketPage() {
+  usePageTitle('Receivables market');
   const { bundle } = useContracts();
   const account = useAccountAddress();
   const invoices = useInvoices(bundle);
@@ -354,10 +363,15 @@ export function MarketPage() {
     [invoices.data],
   );
   const [selected, setSelected] = useState<bigint | undefined>(undefined);
+  const [onlyMine, setOnlyMine] = useState(false);
+  const [slippageBps, setSlippageBps] = useState(50); // 0.50%
+  const now = useNow();
   const quote = useQuote(bundle, selected);
+  const shown = onlyMine && account ? candidates.filter((r) => r.seller === account) : candidates;
+  const minAdvance =
+    selected && bundle && quote.data ? (quote.data.advance * BigInt(10_000 - slippageBps)) / 10_000n : undefined;
   const approveRequest = selected && bundle ? writes.approveReceivable(bundle, selected) : undefined;
-  const advanceRequest =
-    selected && bundle && quote.data ? writes.advance(bundle, selected, (quote.data.advance * 995n) / 1000n) : undefined;
+  const advanceRequest = selected && bundle && minAdvance !== undefined ? writes.advance(bundle, selected, minAdvance) : undefined;
 
   return (
     <PageShell route="/market">
@@ -365,7 +379,7 @@ export function MarketPage() {
         Quotes come from <code>AdvancePool.quote(id)</code>. Delinquent invoices and invoices above the risk ceiling are refused on-chain.
       </div>
       <div className="stat-strip">
-        <Metric label="Eligible receivables" value={candidates.length} />
+        <Metric label="Eligible receivables" value={shown.length} hint={onlyMine ? 'your invoices only' : undefined} />
         <Metric label="Selected face" value={usd(quote.data?.face)} />
         <Metric label="Discount" value={quote.data ? pct(quote.data.discountBps) : '—'} />
         <Metric label="Advance" value={quote.data ? `${usd(quote.data.advance)} USDG` : '—'} />
@@ -381,7 +395,12 @@ export function MarketPage() {
         <span>DISCOUNT</span>
         <span>ADVANCE</span>
       </div>
-      {candidates.length === 0 && !invoices.isLoading && (
+      <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+        <button className={`button-secondary ${onlyMine ? 'active' : ''}`} onClick={() => setOnlyMine(!onlyMine)} data-testid="filter-market-mine">
+          My receivables only
+        </button>
+      </div>
+      {shown.length === 0 && !invoices.isLoading && (
         <section className="panel empty-state" data-testid="state-empty-records">
           <div className="empty-icon">
             <ArrowLeftRight size={17} />
@@ -390,7 +409,7 @@ export function MarketPage() {
           <p>Fund an invoice first; the pool only buys funded, undisputed invoices.</p>
         </section>
       )}
-      {candidates.map((row) => (
+      {shown.map((row) => (
         <button
           key={row.id.toString()}
           className={`table-row ${selected === row.id ? 'active' : ''}`}
@@ -404,7 +423,13 @@ export function MarketPage() {
           </span>
           <span>{usd(row.remaining)} USDG</span>
           <span>{selected === row.id && quote.data ? pct(quote.data.discountBps) : '—'}</span>
-          <span>{selected === row.id && quote.data ? `${usd(quote.data.advance)} USDG` : 'select'}</span>
+          <span>
+            {selected === row.id && quote.data ? (
+              `${usd(quote.data.advance)} USDG`
+            ) : (
+              <span style={{ opacity: 0.7 }}>due {until(row.milestones[0]?.deadline ?? 0, now)}</span>
+            )}
+          </span>
         </button>
       ))}
       {selected !== undefined && (
@@ -423,7 +448,18 @@ export function MarketPage() {
                 <Metric label="Face" value={`${usd(quote.data?.face)} USDG`} />
                 <Metric label="Discount" value={quote.data ? pct(quote.data.discountBps) : '—'} />
                 <Metric label="You receive" value={quote.data ? `${usd(quote.data.advance)} USDG` : '—'} />
-                <Metric label="Slippage guard" value="0.5%" />
+                <Metric label="Slippage guard" value={`${(slippageBps / 100).toFixed(2)}%`} hint={`min ${usd(minAdvance)} USDG`} />
+              </div>
+              <div className="field-grid" style={{ marginTop: 12 }}>
+                <div className="form-field">
+                  <label htmlFor="slippage-bps">Slippage tolerance (bps)</label>
+                  <input
+                    id="slippage-bps"
+                    value={slippageBps}
+                    onChange={(e) => setSlippageBps(Math.max(0, Math.min(2000, Number(e.target.value) || 0)))}
+                    data-testid="input-slippage-bps"
+                  />
+                </div>
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
                 <WriteButton bundle={bundle} request={approveRequest} testId="button-approve-pool" variant="secondary">
@@ -444,6 +480,7 @@ export function MarketPage() {
 /* ---------------------------------------------------------------------- pool */
 
 export function PoolPage() {
+  usePageTitle('Liquidity pool');
   const { bundle } = useContracts();
   const account = useAccountAddress();
   const pool = usePoolState(bundle);
@@ -489,6 +526,11 @@ export function PoolPage() {
                 <label htmlFor="pool-amount">Amount (USDG)</label>
                 <input id="pool-amount" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="100" data-testid="input-pool-amount" />
               </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button className="button-secondary" onClick={() => setAmount(fromUnits(pool.data?.maxWithdraw))} data-testid="button-max-withdraw">
+                Max withdraw
+              </button>
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <WriteButton bundle={bundle} request={depositRequest} testId="button-deposit">
@@ -549,6 +591,7 @@ export function PoolPage() {
 /* ------------------------------------------------------------------- arbiter */
 
 export function ArbiterPage() {
+  usePageTitle('Disputes');
   const { bundle } = useContracts();
   const account = useAccountAddress();
   const invoices = useInvoices(bundle);
@@ -665,6 +708,7 @@ function ArbiterCase({
 /* --------------------------------------------------------------- reputation */
 
 export function ReputationPage() {
+  usePageTitle('Reputation');
   const { bundle } = useContracts();
   const [address, setAddress] = useState('');
   const valid = /^0x[a-fA-F0-9]{40}$/.test(address);
@@ -732,6 +776,7 @@ export function ReputationPage() {
 /* -------------------------------------------------------------------- admin */
 
 export function AdminPage() {
+  usePageTitle('Administration');
   const { bundle } = useContracts();
   const account = useAccountAddress();
   const pool = usePoolState(bundle);
@@ -739,21 +784,57 @@ export function AdminPage() {
   const [arbiter, setArbiter] = useState('');
   const [seller, setSeller] = useState('');
   const [limit, setLimit] = useState('');
+  const [feeBps, setFeeBps] = useState('0');
+  const [feeRecipient, setFeeRecipient] = useState('');
+  const [maxDiscount, setMaxDiscount] = useState('');
+  const [cap, setCap] = useState('');
+  const [minHistory, setMinHistory] = useState('');
 
   return (
     <PageShell route="/admin">
-      <div className="notice-bar">
-        {isOwner ? 'Connected address is the pool owner on this deployment.' : 'Owner-only actions stay locked unless the connected account is the contract owner.'}
+      <div className="notice-bar" data-testid="notice-admin-owner">
+        {isOwner
+          ? `Connected address is the owner of this deployment (${short(pool.data?.owner)}).`
+          : 'Owner-only actions stay locked unless the connected account is the contract owner.'}
       </div>
       <div className="stat-strip">
-        <Metric label="Escrow pause" value={pool.data ? (pool.data.escrowPaused ? 'paused' : 'active') : '—'} />
-        <Metric label="Pool pause" value={pool.data ? (pool.data.paused ? 'paused' : 'active') : '—'} />
+        <Metric label="Escrow" value={pool.data ? (pool.data.escrowPaused ? 'paused' : 'active') : '—'} />
+        <Metric label="Pool" value={pool.data ? (pool.data.paused ? 'paused' : 'active') : '—'} />
         <Metric label="Max discount" value={pool.data ? pct(pool.data.params.maxDiscountBps) : '—'} />
-        <Metric label="Owner" value={pool.data ? short(pool.data.owner) : '—'} />
+        <Metric label="Utilisation cap" value={pool.data ? pct(pool.data.params.utilizationCapBps) : '—'} hint="of face" />
       </div>
+
       <div className="section-heading">
-        <h2>Protocol controls</h2>
-        <span>{isOwner ? 'OWNER CONFIRMED' : 'OWNER ONLY'}</span>
+        <h2>Pause controls</h2>
+        <span>NEW WORK ONLY</span>
+      </div>
+      <section className="panel" style={{ display: 'grid', gap: 12 }}>
+        <p className="form-footnote" style={{ margin: 0 }}>
+          Pausing stops new invoices, funding, deposits and advances. Settlement, refunds and withdrawals stay open by design.
+        </p>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <WriteButton
+            bundle={isOwner ? bundle : null}
+            request={bundle && isOwner ? (pool.data?.escrowPaused ? writes.unpauseEscrow(bundle) : writes.pauseEscrow(bundle)) : undefined}
+            testId="button-admin-pause-escrow"
+            variant={pool.data?.escrowPaused ? 'primary' : 'secondary'}
+          >
+            {pool.data?.escrowPaused ? 'Unpause escrow' : 'Pause escrow'}
+          </WriteButton>
+          <WriteButton
+            bundle={isOwner ? bundle : null}
+            request={bundle && isOwner ? (pool.data?.paused ? writes.unpausePool(bundle) : writes.pausePool(bundle)) : undefined}
+            testId="button-admin-pause-pool"
+            variant={pool.data?.paused ? 'primary' : 'secondary'}
+          >
+            {pool.data?.paused ? 'Unpause pool' : 'Pause pool'}
+          </WriteButton>
+        </div>
+      </section>
+
+      <div className="section-heading">
+        <h2>Credit & arbitration</h2>
+        <span>OPERATOR DECISIONS</span>
       </div>
       <section className="panel" style={{ display: 'grid', gap: 12 }}>
         <div className="field-grid">
@@ -762,21 +843,93 @@ export function AdminPage() {
             <input id="admin-arbiter" value={arbiter} onChange={(e) => setArbiter(e.target.value)} placeholder="0x…" data-testid="input-admin-arbiter" />
           </div>
           <div className="form-field">
-            <label htmlFor="admin-seller">Seller credit limit (USDG)</label>
+            <label htmlFor="admin-seller">Seller credit limit</label>
             <div style={{ display: 'flex', gap: 8 }}>
-              <input id="admin-seller" value={seller} onChange={(e) => setSeller(e.target.value)} placeholder="0x…" data-testid="input-admin-seller" />
-              <input value={limit} onChange={(e) => setLimit(e.target.value)} placeholder="500000" data-testid="input-admin-limit" />
+              <input id="admin-seller" value={seller} onChange={(e) => setSeller(e.target.value)} placeholder="seller 0x…" data-testid="input-admin-seller" />
+              <input value={limit} onChange={(e) => setLimit(e.target.value)} placeholder="500000 USDG" data-testid="input-admin-limit" />
             </div>
           </div>
         </div>
-        <p className="form-footnote">
-          The operator approves arbiters and sets per-seller credit limits. Pricing parameters are bounded on-chain; the admin cannot move user
-          funds, and a defaulted advance keeps the limit consumed.
-        </p>
         <AdminWrites bundle={bundle} isOwner={isOwner} arbiter={arbiter} seller={seller} limit={limit} />
+      </section>
+
+      <div className="section-heading">
+        <h2>Risk parameters</h2>
+        <span>BOUNDED ON-CHAIN</span>
+      </div>
+      <section className="panel" style={{ display: 'grid', gap: 12 }}>
+        <div className="field-grid">
+          <div className="form-field">
+            <label htmlFor="admin-max-discount">Max discount (bps, ≤ 5000)</label>
+            <input id="admin-max-discount" value={maxDiscount} onChange={(e) => setMaxDiscount(e.target.value)} placeholder={pool.data ? String(pool.data.params.maxDiscountBps) : '2000'} data-testid="input-admin-max-discount" />
+          </div>
+          <div className="form-field">
+            <label htmlFor="admin-cap">Utilisation cap (bps, ≤ 10000)</label>
+            <input id="admin-cap" value={cap} onChange={(e) => setCap(e.target.value)} placeholder={pool.data ? String(pool.data.params.utilizationCapBps) : '8000'} data-testid="input-admin-cap" />
+          </div>
+          <div className="form-field">
+            <label htmlFor="admin-min-history">Min history (≥ 1)</label>
+            <input id="admin-min-history" value={minHistory} onChange={(e) => setMinHistory(e.target.value)} placeholder={pool.data ? String(pool.data.params.minHistory) : '3'} data-testid="input-admin-min-history" />
+          </div>
+        </div>
+        <WriteButton
+          bundle={isOwner ? bundle : null}
+          request={
+            bundle && isOwner && pool.data
+              ? writes.setParams(bundle, {
+                  ...pool.data.params,
+                  maxDiscountBps: maxDiscount === '' ? pool.data.params.maxDiscountBps : Number(maxDiscount),
+                  utilizationCapBps: cap === '' ? pool.data.params.utilizationCapBps : Number(cap),
+                  minHistory: minHistory === '' ? pool.data.params.minHistory : Number(minHistory),
+                })
+              : undefined
+          }
+          testId="button-admin-params"
+        >
+          Save risk parameters
+        </WriteButton>
+        <p className="form-footnote" style={{ margin: 0 }}>
+          Leave a field blank to keep its current value. The contract rejects max discount above 50%, a zero cap, and a zero minimum history.
+        </p>
+      </section>
+
+      <div className="section-heading">
+        <h2>Protocol fee</h2>
+        <span>SNAPSHOTTED PER INVOICE</span>
+      </div>
+      <section className="panel" style={{ display: 'grid', gap: 12 }}>
+        <div className="field-grid">
+          <div className="form-field">
+            <label htmlFor="admin-fee">Fee (bps, ≤ 100)</label>
+            <input id="admin-fee" value={feeBps} onChange={(e) => setFeeBps(e.target.value)} placeholder="0" data-testid="input-admin-fee" />
+          </div>
+          <div className="form-field">
+            <label htmlFor="admin-fee-to">Fee recipient</label>
+            <input id="admin-fee-to" value={feeRecipient} onChange={(e) => setFeeRecipient(e.target.value)} placeholder="0x…" data-testid="input-admin-fee-recipient" />
+          </div>
+        </div>
+        <WriteButton
+          bundle={isOwner ? bundle : null}
+          request={
+            bundle && isOwner && feeRecipient && /^0x[a-fA-F0-9]{40}$/.test(feeRecipient) && Number(feeBps) >= 0 && Number(feeBps) <= 100
+              ? writes.setFee(bundle, Number(feeBps), feeRecipient as `0x${string}`)
+              : undefined
+          }
+          testId="button-admin-fee"
+          variant="secondary"
+        >
+          Update fee
+        </WriteButton>
+        <p className="form-footnote" style={{ margin: 0 }}>
+          The rate is frozen into each invoice when it is created, but the recipient must stay a real address: the escrow rejects the zero address.
+        </p>
       </section>
     </PageShell>
   );
+}
+
+function useAbiLoader() {
+  return advancePoolAbi;
 }
 
 function AdminWrites({
@@ -793,9 +946,8 @@ function AdminWrites({
   limit: string;
 }) {
   const abi = useAbiLoader();
-
   const arbiterRequest =
-    bundle && isOwner && /^0x[a-fA-F0-9]{40}$/.test(arbiter)
+    bundle && abi && isOwner && /^0x[a-fA-F0-9]{40}$/.test(arbiter)
       ? { address: bundle.addresses.pool, abi, functionName: 'setApprovedArbiter', args: [arbiter, true] }
       : undefined;
   const creditRequest =
@@ -815,20 +967,21 @@ function AdminWrites({
   );
 }
 
-function useAbiLoader() {
-  return advancePoolAbi;
-}
-
 /* ------------------------------------------------------------------ activity */
 
 export function ActivityPage() {
+  usePageTitle('Activity');
   const { bundle } = useContracts();
-  const activity = useActivity(bundle);
-  const [filter, setFilter] = useState<'all' | 'claims' | 'disputes'>('all');
+  const [filter, setFilter] = useState<'all' | 'claims' | 'disputes' | 'advances'>('all');
+  const [address, setAddress] = useState('');
+  const [lookback, setLookback] = useState(30_000);
+  const activity = useActivity(bundle, BigInt(lookback));
 
   const events = (activity.data ?? []).filter((e) => {
-    if (filter === 'claims') return e.name === 'Claimed' || e.name === 'PayoutDeferred';
-    if (filter === 'disputes') return e.name === 'MilestoneDisputed' || e.name === 'MilestoneSettled';
+    if (filter === 'claims' && e.name !== 'Claimed' && e.name !== 'PayoutDeferred') return false;
+    if (filter === 'disputes' && e.name !== 'MilestoneDisputed' && e.name !== 'MilestoneSettled') return false;
+    if (filter === 'advances' && e.name !== 'Advanced' && e.name !== 'AdvanceSettled') return false;
+    if (address && !JSON.stringify(e.args).toLowerCase().includes(address.toLowerCase())) return false;
     return true;
   });
 
@@ -844,8 +997,31 @@ export function ActivityPage() {
         <button className={`button-secondary ${filter === 'disputes' ? 'active' : ''}`} onClick={() => setFilter('disputes')} data-testid="filter-activity-disputes">
           Disputes
         </button>
+        <button className={`button-secondary ${filter === 'advances' ? 'active' : ''}`} onClick={() => setFilter('advances')} data-testid="filter-activity-advances">
+          Advances
+        </button>
       </div>
-      {activity.isLoading && <Loading label="Decoding events from the last 30k blocks…" />}
+      <div style={{ display: 'flex', gap: 9, marginBottom: 14, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div className="form-field" style={{ minWidth: 260 }}>
+          <label htmlFor="activity-address">Filter by address</label>
+          <input
+            id="activity-address"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            placeholder="0x… (any party in the event)"
+            data-testid="input-activity-address"
+          />
+        </div>
+        <div className="form-field" style={{ minWidth: 180 }}>
+          <label htmlFor="activity-lookback">Block range</label>
+          <select id="activity-lookback" value={lookback} onChange={(e) => setLookback(Number(e.target.value))} data-testid="select-activity-lookback">
+            <option value={5_000}>Last 5,000 blocks</option>
+            <option value={30_000}>Last 30,000 blocks</option>
+            <option value={200_000}>Last 200,000 blocks</option>
+          </select>
+        </div>
+      </div>
+      {activity.isLoading && <Loading label={`Decoding events from the last ${lookback.toLocaleString()} blocks…`} />}
       <ErrorNote error={activity.error} />
       <div className="table-row header">
         <span>EVENT</span>
@@ -853,12 +1029,20 @@ export function ActivityPage() {
         <span>BLOCK</span>
         <span>TRANSACTION</span>
       </div>
-      <EventTable events={events} loading={false} />
+      <EventTable events={events} loading={false} bundle={bundle} />
     </PageShell>
   );
 }
 
-function EventTable({ events, loading }: { events: ActivityEvent[]; loading: boolean }) {
+function EventTable({
+  events,
+  loading,
+  bundle,
+}: {
+  events: ActivityEvent[];
+  loading: boolean;
+  bundle?: ReturnType<typeof useContracts>['bundle'];
+}) {
   if (!loading && events.length === 0) {
     return (
       <section className="panel empty-state" data-testid="state-empty-records">
@@ -877,7 +1061,7 @@ function EventTable({ events, loading }: { events: ActivityEvent[]; loading: boo
           <span>{e.name}</span>
           <span>{describeEvent(e.name, e.args)}</span>
           <span>{e.blockNumber?.toString() ?? '—'}</span>
-          <span>{e.txHash ? `${e.txHash.slice(0, 10)}…` : '—'}</span>
+          <span><TxLink txHash={e.txHash} bundle={bundle} /></span>
         </div>
       ))}
     </>
@@ -904,10 +1088,12 @@ function describeEvent(name: string, args: Record<string, unknown>): string {
 /* ------------------------------------------------------------------- invoice */
 
 export function InvoicePage({ id }: { id: string }) {
+  usePageTitle(`Invoice #${id}`);
   const { bundle } = useContracts();
   const account = useAccountAddress();
   const numeric = /^\d+$/.test(id) ? BigInt(id) : undefined;
   const invoice = useInvoice(bundle, numeric);
+  const now = useNow();
   const quote = useQuote(bundle, invoice.data?.owner === account ? numeric : undefined);
   const row = invoice.data;
 
@@ -959,16 +1145,40 @@ export function InvoicePage({ id }: { id: string }) {
               <span>
                 #{index} · {usd(m.amount)} USDG
               </span>
-              <span>due {new Date(m.deadline * 1000).toISOString().slice(0, 10)}</span>
+              <span title={new Date(m.deadline * 1000).toISOString()}>
+                due {new Date(m.deadline * 1000).toISOString().slice(0, 10)} · {until(m.deadline, now)}
+              </span>
               <span>{MILESTONE[m.status]}</span>
               <span>{m.status === 0 ? 'pending' : m.status === 1 ? 'in review' : 'settled'}</span>
             </div>
           ))}
-          <div className="status-line" style={{ marginTop: 12 }}>
-            <i /> Seller {short(row.seller)} · Buyer {short(row.buyer)} · Arbiter {short(row.arbiter)}
+          <div className="status-line" style={{ marginTop: 12, gap: 14, flexWrap: 'wrap' }}>
+            <span>
+              <i /> Seller <AddressLink address={row.seller} bundle={bundle} />
+            </span>
+            <span>
+              <i /> Buyer <AddressLink address={row.buyer} bundle={bundle} />
+            </span>
+            <span>
+              <i /> Arbiter <AddressLink address={row.arbiter} bundle={bundle} />
+            </span>
           </div>
           <div className="status-line">
-            <i /> Right to payment held by {short(row.owner)}
+            <i /> Right to payment held by <AddressLink address={row.owner} bundle={bundle} />
+            {row.owner === bundle?.addresses.pool && ' (the pool has financed this receivable)'}
+          </div>
+          <div className="status-line">
+            <i /> Document hash {row.docHash ? `${String(row.docHash).slice(0, 18)}…` : 'not recorded'}
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            {row.id > 1n && (
+              <Link href={`/invoice/${row.id - 1n}`} className="button-secondary" data-testid="link-prev-invoice">
+                ← Invoice #{row.id - 1n}
+              </Link>
+            )}
+            <Link href={`/invoice/${row.id + 1n}`} className="button-secondary" data-testid="link-next-invoice">
+              Invoice #{row.id + 1n} →
+            </Link>
           </div>
         </section>
         <section>

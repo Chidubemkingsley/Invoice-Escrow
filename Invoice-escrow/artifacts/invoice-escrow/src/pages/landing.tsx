@@ -11,8 +11,8 @@ import {
   ShieldCheck,
   Wallet,
 } from 'lucide-react';
-import { useActivity, useContracts, useInvoices, usePoolState } from '../hooks/useEscrowData';
-import { ErrorNote, fromUnits, Metric, pct, short, usd } from '../components/contract-ui';
+import { useActivity, useContracts, useInvoices, usePageTitle, usePoolState } from '../hooks/useEscrowData';
+import { AddressLink, ErrorNote, explorerAddressUrl, fromUnits, Metric, pct, short, usd } from '../components/contract-ui';
 import { getSupportedChain } from '../lib/chains';
 
 const STEPS = [
@@ -65,6 +65,7 @@ const GUARANTEES = [
 ];
 
 export function LandingPage() {
+  usePageTitle('Invoice escrow');
   const { bundle } = useContracts();
   const pool = usePoolState(bundle);
   const invoices = useInvoices(bundle);
@@ -287,6 +288,17 @@ export function LandingPage() {
           </div>
         )}
         <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
+          {bundle && (
+            <a
+              href={explorerAddressUrl(bundle, bundle.addresses.escrow)}
+              target="_blank"
+              rel="noreferrer"
+              className="button-secondary"
+              data-testid="cta-verified-source"
+            >
+              Verified escrow source
+            </a>
+          )}
           <Link href="/activity" className="button-secondary" data-testid="cta-activity">
             <Clock3 size={14} /> Event log
           </Link>

@@ -1,9 +1,15 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useAccount, useChainId } from 'wagmi';
 import { useQuery } from '@tanstack/react-query';
 import type { Address } from 'viem';
 import { getContracts, reads, type ContractBundle } from '../contract-adapter';
 import { escrowAbi, poolAbi } from '../abis/index';
+
+export function usePageTitle(title: string) {
+  useEffect(() => {
+    document.title = `${title} · Invoice escrow`;
+  }, [title]);
+}
 
 export function useContracts(): { bundle: ContractBundle | null; ready: boolean } {
   const chainId = useChainId();
@@ -42,6 +48,7 @@ export type InvoiceRow = {
   feeBps: number;
   owner: Address | undefined;
   milestones: { amount: bigint; deadline: number; status: number }[];
+  docHash?: string;
 };
 
 const STATUS = ['None', 'Created', 'Funded', 'Closed', 'Cancelled'] as const;
@@ -51,6 +58,7 @@ export function useInvoice(bundle: ContractBundle | null, id: bigint | undefined
   return useQuery({
     queryKey: ['escrow', 'invoice', bundle?.chain.id, id?.toString()],
     enabled: !!bundle && id !== undefined,
+    refetchInterval: 15_000,
     queryFn: async (): Promise<InvoiceRow | null> => {
       const b = bundle as ContractBundle;
       const invoice = (await reads.invoice(b, id as bigint)) as Record<string, unknown>;
@@ -84,6 +92,7 @@ export function useInvoice(bundle: ContractBundle | null, id: bigint | undefined
         feeBps: Number(invoice.feeBps),
         owner,
         milestones: milestones.map((m) => ({ amount: m.amount, deadline: Number(m.deadline), status: Number(m.status) })),
+        docHash: invoice.docHash as string | undefined,
       };
     },
   });
@@ -162,6 +171,7 @@ export function usePoolState(bundle: ContractBundle | null) {
   return useQuery({
     queryKey: ['pool', 'state', bundle?.chain.id, account],
     enabled: !!bundle,
+    refetchInterval: 15_000,
     queryFn: async () => {
       const b = bundle as ContractBundle;
       const [state, sharePrice, params, maxWithdraw, idleCap, paused, escrowPaused, owner, balance] = await Promise.all([
@@ -337,6 +347,7 @@ export function useActivity(bundle: ContractBundle | null, lookback = 30_000n) {
   return useQuery({
     queryKey: ['activity', bundle?.chain.id, bundle?.addresses.escrow, lookback.toString()],
     enabled: !!bundle,
+    refetchInterval: 20_000,
     queryFn: async (): Promise<ActivityEvent[]> => {
       const b = bundle as ContractBundle;
       const latest = await b.publicClient.getBlockNumber();
