@@ -1,0 +1,20 @@
+name	Invoice-Escrow
+mode	default
+files	./script/Deploy.s.sol ./script/Demo.s.sol ./src/InvoiceEscrow.sol ./src/AdvancePool.sol
+passes_planned	5
+mem_before	0
+pass_1_agents	10/12
+mem_after	20
+mem_sha	3d16cd4
+pass_2_agents	3/11
+mem_after	22
+mem_sha	3d16cd4
+pass_3_agents	4/4
+mem_after	43
+mem_sha	3d16cd4
+pass_4_agents	5/6
+mem_after	53
+mem_sha	3d16cd4
+pass_5_agents	1/4
+mem_after	56
+mem_sha	3d16cd4

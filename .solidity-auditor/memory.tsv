@@ -1,0 +1,57 @@
+#solidity-auditor-memory v1	key	status	scans	sha	title	kind
+advancepool|onmilestonesettled|silent-callback-failure-accounting-corruption	NEW	1	3d16cd4	Gas-capped pool callback silently dropped, breaking advance accounting	FINDING
+invoiceescrow|submitmilestone|late-submission-defeats-refund	NEW	1	3d16cd4	Late milestone submission erases the buyer refund path	FINDING
+advancepool|quote|missing-delinquency-check	NEW	1	3d16cd4	Pool prices an already-late invoice near its full face	FINDING
+advancepool|sweepdeferred|blocked-rescue-path	NEW	1	3d16cd4	Pool cannot rescue deferred payouts when its own address is blocked	FINDING
+advancepool|quote|tenor-underestimate	NEW	1	3d16cd4	Pool prices a lockup shorter than the real one	FINDING
+advancepool|totalassets|deferred-payout-nav-dip	NEW	1	3d16cd4	A deferred payout depresses the pool share price until swept	FINDING
+advancepool|setparams|missing-param-validation	NEW	1	3d16cd4	Invalid params brick quoting	LEAD
+advancepool|_premium|boundary-flat-newcomer-premium	NEW	1	3d16cd4	A seller with two defaults is priced as a virgin	FINDING
+advancepool|advance|zero-cost-advance-bookkeeping	NEW	1	3d16cd4	A zero-cost advance records no bookkeeping	LEAD
+advancepool|advance|exposure-attribution-mismatch	NEW	1	3d16cd4	Credit limit charged to the performer, paid to the NFT owner	LEAD
+advancepool|deposit|jit-deposit-nav-dilution	NEW	1	3d16cd4	Same-block deposit dilutes settlement profit	LEAD
+invoiceescrow|_recordreputation|washable-reputation	NEW	1	3d16cd4	Clean reputation is farmable	LEAD
+invoiceescrow|_recordreputation|asymmetric-counter-updates	NEW	1	3d16cd4	Reputation counters charge buyers asymmetrically	LEAD
+invoiceescrow|_payout|live-fee-recipient	NEW	1	3d16cd4	Fee rate snapshotted, recipient live	LEAD
+invoiceescrow|reclaimunsubmitted|silent-buyer-deadlock	NEW	1	3d16cd4	Only the buyer can refund an undelivered milestone, so pool capital stays open forever	FINDING
+invoiceescrow|reclaimunsubmitted|clock-restart-only-on-delivery	NEW	1	3d16cd4	Previous refund does not compress next milestone window	LEAD
+invoiceescrow|claim|no-sweep-for-stray-token	NEW	1	3d16cd4	No recovery for tokens sent to the escrow by mistake	LEAD
+deploy|run|truncated-fee-env	NEW	1	3d16cd4	FEE_BPS env truncates above 65535	LEAD
+deploy|run|predictable-arbiter-default	NEW	1	3d16cd4	Demo default arbiter key is derivable	LEAD
+invoiceescrow|constructor|single-step-owner	NEW	1	3d16cd4	Mistyped owner bricks admin forever	LEAD
+advancepool|quote|timeout-split-pricing-gap	NEW	1	3d16cd4	A forced 50/50 split erases seven advances' worth of discount	FINDING
+deploy|run|arbiter-approval-skipped	NEW	1	3d16cd4	Deployer role skips arbiter approval for a separate owner	LEAD
+advancepool|onmilestonesettled|bad-debt-frees-credit-limit	NEW	1	3d16cd4	A defaulted advance frees the seller credit limit, so the drain repeats	FINDING
+advancepool|advance|cap-denominated-in-cost-basis	NEW	1	3d16cd4	Utilisation cap counts cost, so the pool holds 160% of its NAV in face value	FINDING
+advancepool|maxwithdraw|utilization-cap-defeated-by-withdrawal	NEW	1	3d16cd4	Any LP can withdraw idle cash and freeze all new advances	FINDING
+demo|_issueandfund|stale-id-read-wrong-invoice	NEW	1	3d16cd4	The demo funds an invoice id read before creation, so anyone can take the buyer's USDG	FINDING
+advancepool|_premium|washable-reputation	NEW	1	3d16cd4	Three self-dealt settlements buy a zero risk premium	FINDING
+advancepool|sweepdeferred|deferred-payout-nav-dip	NEW	1	3d16cd4	A depositor in a deferred-payout block captures the whole payout	FINDING
+advancepool|deployed|nav-not-marked-down	NEW	1	3d16cd4	A dead advance stays at full cost, so the next depositor buys a share price the escrow cannot pay	FINDING
+invoiceescrow|_notifyholder|silent-callback-failure-accounting-corruption	NEW	1	3d16cd4	The escrow sends the holder callback once and stores no receipt	LEAD
+invoiceescrow|_push|asymmetric-amount-verification	NEW	1	3d16cd4	fund checks the received balance, _push does not	LEAD
+invoiceescrow|createinvoice|seller-selects-dispute-resolver	NEW	1	3d16cd4	The seller names the arbiter and the buyer never consents	LEAD
+invoiceescrow|_recordreputation|buyer-credit-for-silence	NEW	1	3d16cd4	autoRelease credits the buyer with a clean record	LEAD
+invoiceescrow|_recordreputation|unbounded-reputation-counter	NEW	1	3d16cd4	Reputation counters are uint32 and never reset	LEAD
+invoiceescrow|cancelinvoice|stale-ledger-after-cancel	NEW	1	3d16cd4	cancelInvoice leaves remaining and openMilestones populated	LEAD
+advancepool|quote|cap-checks-absent-from-quote	NEW	1	3d16cd4	quote prices invoices that advance will reject	LEAD
+advancepool|quote|view-write-pricing-divergence	NEW	1	3d16cd4	The quote reserves the fee on full face, the payout charges it on the payee's share	LEAD
+advancepool|previewredeem|preview-exceeds-max-redeem	NEW	1	3d16cd4	previewRedeem reports deployed value that redeem then refuses	LEAD
+advancepool|_decimalsoffset|weak-virtual-offset	NEW	1	3d16cd4	Virtual offset of 6 is 0.2% of a 500 USDG first deposit	LEAD
+deploy|run|missing-asset-identity-check	NEW	1	3d16cd4	The mock-token branch has no chain guard	LEAD
+deploy|_record|unvalidated-deployment-json	NEW	1	3d16cd4	Deployment JSON records escrow and pool without checking their code	LEAD
+demo|_advance|stale-quote-no-max-price	NEW	1	3d16cd4	The demo quotes and advances in two transactions, and advance has no maximum price	LEAD
+ireceivableholder|onmilestonesettled|callback-drops-outcome	NEW	1	3d16cd4	The settlement callback carries no outcome, so a holder cannot mark a receivable to market	LEAD
+invoiceescrow|_setfee|fee-recipient-zeroed-after-snapshot	NEW	1	3d16cd4	Clearing the fee recipient strands accrued fees where nobody can claim them	FINDING
+invoiceescrow|_push|payout-burned-in-escrow	NEW	1	3d16cd4	Paying a payee that is the escrow contract succeeds, so the payout stays locked	FINDING
+invoiceescrow|_push|push-reverts-on-noncanonical-return	NEW	1	3d16cd4	A non-canonical bool return freezes settlement	LEAD
+advancepool|onmilestonesettled|intra-settlement-nav-window	NEW	1	3d16cd4	Cash moves before the callback, so totalAssets is briefly too high	LEAD
+advancepool|deposit|erc4626-paths-not-guarded	NEW	1	3d16cd4	Only advance arms the reentrancy guard	LEAD
+advancepool|advance|cap-checks-absent-from-quote	NEW	1	3d16cd4	quote prices invoices that advance will reject	LEAD
+advancepool|advance|split-record-read	NEW	1	3d16cd4	advance prices one copy of the invoice and books exposure against a second read	LEAD
+demo|_checkbalances|mock-cast-on-real-token	NEW	1	3d16cd4	The demo casts the deployment token to MockUSDG	LEAD
+demo|_load|unvalidated-deployment-json	NEW	1	3d16cd4	The demo trusts deployments/<chainid>.json without checking code	LEAD
+demo|run|no-postcondition-assertion	NEW	1	3d16cd4	The demo checks no final balance	LEAD
+invoiceescrow|autorelease|buyer-credit-for-silence	NEW	1	3d16cd4	autoRelease credits a clean record to a silent buyer	FINDING
+advancepool|_premium|missing-param-validation	NEW	1	3d16cd4	A zero minHistory makes _premium divide by zero	FINDING
+invoiceescrow|disputemilestone|nav-not-marked-down	NEW	1	3d16cd4	A free dispute holds the pool price above the value the escrow will pay	LEAD
