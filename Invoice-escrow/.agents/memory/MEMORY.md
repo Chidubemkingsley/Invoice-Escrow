@@ -1,0 +1,1 @@
+- [Workspace dependency installation](workspace-dependency-installation.md) — artifact-scoped pnpm packages need a workspace filter; the package installer adds at the root.

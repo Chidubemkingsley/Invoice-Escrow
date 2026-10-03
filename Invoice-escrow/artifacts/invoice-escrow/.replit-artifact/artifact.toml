@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Invoice-escrow"
+description = "A wallet-connected invoice escrow and receivables finance app for sellers, buyers, and liquidity providers. Create milestone invoices, manage delivery and dispute actions, sell eligible receivables to a liquidity pool, and track claims and on-chain reputation across supported testnets."
+version = "1.0.0"
+id = "artifacts/invoice-escrow"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21348
+
+[services.development]
+run = "pnpm --filter @workspace/invoice-escrow run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/invoice-escrow", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/invoice-escrow/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21348"
+BASE_PATH = "/"

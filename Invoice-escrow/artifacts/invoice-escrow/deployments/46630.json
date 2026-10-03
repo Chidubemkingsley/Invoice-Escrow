@@ -1,0 +1,11 @@
+{
+  "chainId": 46630,
+  "token": "0x7E955252E15c84f5768B83c41a71F9eba181802F",
+  "escrow": "0x214e2316EAEeE24c1dc5d8433329fFC7544DA331",
+  "pool": "0xb5A7176913574D8290eDa1469fC4Ef734D135CE5",
+  "owner": "0x90356CF97B3BF1749A604d3F89b3DF3602A459E3",
+  "faucetUrls": {
+    "token": "https://faucet.paxos.com/?network=robinhood",
+    "gas": "https://faucets.chain.link/robinhood"
+  }
+}

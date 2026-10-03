@@ -1,0 +1,66 @@
+{
+  "generatedBy": "script/Deploy.s.sol",
+  "note": "Token addresses are the Paxos-published testnet deployments; escrow and pool are this project's verified deployments.",
+  "chains": [
+    {
+      "name": "Arbitrum Sepolia",
+      "chainId": 421614,
+      "rpc": "https://sepolia-rollup.arbitrum.io/rpc",
+      "explorer": "https://arbitrum-sepolia.blockscout.com",
+      "faucets": {
+        "gas": "https://arbitrum-faucet.dev/Sepolia",
+        "usdg": "https://faucet.paxos.com/"
+      },
+      "contracts": {
+        "token": {
+          "address": "0xFFC95faa3d63Cde504a05B567C600B78C0b41892",
+          "symbol": "USDG",
+          "decimals": 6,
+          "kind": "ERC1967Proxy(ERC20)",
+          "abi": "abis/USDG.json",
+          "verified": "https://arbitrum-sepolia.blockscout.com/address/0x0643bc7146ab7A2dD4Ea10d506ba95E1b933B236"
+        },
+        "escrow": {
+          "address": "0xE930b702d910833D791311D1Fe136e127B2680E5",
+          "abi": "abis/InvoiceEscrow.json",
+          "verified": "https://arbitrum-sepolia.blockscout.com/address/0xe930b702d910833d791311d1fe136e127b2680e5"
+        },
+        "pool": {
+          "address": "0x530B1646859F21b138cEe27887D141E784c562c6",
+          "abi": "abis/AdvancePool.json",
+          "verified": "https://arbitrum-sepolia.blockscout.com/address/0x530b1646859f21b138cee27887d141e784c562c6"
+        }
+      }
+    },
+    {
+      "name": "Robinhood Chain Testnet",
+      "chainId": 46630,
+      "rpc": "https://rpc.testnet.chain.robinhood.com",
+      "explorer": "https://explorer.testnet.chain.robinhood.com",
+      "faucets": {
+        "gas": "https://faucets.chain.link/robinhood",
+        "usdg": "https://faucet.paxos.com/?network=robinhood"
+      },
+      "contracts": {
+        "token": {
+          "address": "0x7E955252E15c84f5768B83c41a71F9eba181802F",
+          "symbol": "USDG",
+          "decimals": 6,
+          "kind": "ERC1967Proxy(ERC20)",
+          "abi": "abis/USDG.json",
+          "verified": "https://explorer.testnet.chain.robinhood.com/address/0xF0863D7A29a55d0c4263c11bFac754312ff078DF"
+        },
+        "escrow": {
+          "address": "0x214e2316EAEeE24c1dc5d8433329fFC7544DA331",
+          "abi": "abis/InvoiceEscrow.json",
+          "verified": "https://explorer.testnet.chain.robinhood.com/address/0x214e2316eaeee24c1dc5d8433329ffc7544da331"
+        },
+        "pool": {
+          "address": "0xb5A7176913574D8290eDa1469fC4Ef734D135CE5",
+          "abi": "abis/AdvancePool.json",
+          "verified": "https://explorer.testnet.chain.robinhood.com/address/0xb5a7176913574d8290eda1469fc4ef734d135ce5"
+        }
+      }
+    }
+  ]
+}
