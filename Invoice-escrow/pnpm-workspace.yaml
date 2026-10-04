@@ -160,3 +160,15 @@ allowBuilds:
   esbuild: true
   keccak: true
   utf-8-validate: true
+
+# Build scripts that must run for a clean install to succeed (esbuild's binary,
+# native keccak/bufferutil). `allowBuilds` is the pnpm 12 name; `onlyBuiltDependencies`
+# keeps pnpm 10/11 hosts (including CI) from failing with ERR_PNPM_IGNORED_BUILDS.
+onlyBuiltDependencies:
+  - bufferutil
+  - esbuild
+  - keccak
+  - utf-8-validate
+  - '@swc/core'
+  - msw
+  - unrs-resolver
