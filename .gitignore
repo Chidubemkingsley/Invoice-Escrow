@@ -1,7 +1,8 @@
+# Anchored to the repo root: these must not match the frontend workspace dirs
+/lib/
+/out/
+/cache/
+/broadcast/
+/node_modules/
 .env
-cache/
-out/
-broadcast/
-lib/
-node_modules/
 *.tsbuildinfo
