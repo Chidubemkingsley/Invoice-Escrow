@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAccount } from 'wagmi';
+import { keccak256, toBytes } from 'viem';
 import {
   Activity as ActivityIcon,
   ArrowLeftRight,
@@ -241,6 +242,8 @@ export function CreatePage() {
   const [arbiter, setArbiter] = useState('');
   const [docHash, setDocHash] = useState('');
   const [rows, setRows] = useState([{ amount: '', deadline: '' }, { amount: '', deadline: '' }]);
+  const [docText, setDocText] = useState('');
+  const [docName, setDocName] = useState<string | null>(null);
 
   const valid =
     !!bundle &&
@@ -293,7 +296,51 @@ export function CreatePage() {
             </div>
             <div className="form-field wide">
               <label htmlFor="create-doc">Invoice document hash (keccak/bytes32)</label>
-              <input id="create-doc" value={docHash} onChange={(e) => setDocHash(e.target.value)} placeholder="0x…" data-testid="input-invoice-document-hash" />
+              <input id="create-doc" value={docHash} onChange={(e) => setDocHash(e.target.value)} placeholder="Paste a hash, or hash a document below" data-testid="input-invoice-document-hash" />
+              <p className="form-footnote" style={{ marginTop: 6 }}>
+                Only the hash is stored on-chain. Re-hash the same file later to prove the document has not changed.
+              </p>
+            </div>
+            <div className="form-field wide">
+              <label htmlFor="create-doc-source">Invoice document (hashed locally, never uploaded)</label>
+              <textarea
+                id="create-doc-source"
+                value={docText}
+                onChange={(e) => {
+                  setDocText(e.target.value);
+                  setDocName(null);
+                }}
+                rows={4}
+                placeholder={'Paste the invoice terms, or drop a PDF above.\n\nINVOICE #001\nSeller: …\nBuyer: …\nAmount: 14,000.00 USDG'}
+                data-testid="input-document-source"
+              />
+              <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <label className="button-secondary" style={{ cursor: 'pointer' }}>
+                  Choose file
+                  <input
+                    type="file"
+                    style={{ display: 'none' }}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setDocName(file.name);
+                      const buf = new Uint8Array(await file.arrayBuffer());
+                      setDocText('');
+                      setDocHash(keccak256(buf));
+                    }}
+                    data-testid="input-document-file"
+                  />
+                </label>
+                <button
+                  className="button-primary"
+                  disabled={docText.trim() === ''}
+                  onClick={() => setDocHash(keccak256(toBytes(docText)))}
+                  data-testid="button-hash-document"
+                >
+                  Hash this document
+                </button>
+                {docName && <span className="form-footnote">loaded {docName}</span>}
+              </div>
             </div>
           </div>
           <div className="section-heading">
