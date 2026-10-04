@@ -80,9 +80,45 @@ forge coverage --no-match-contract InvariantTest
 ./deploy.sh demo robinhood_testnet
 ```
 The script picks the USDG address from the chain ID, fails early if there is no contract at that address or the
-deployer has no gas, and prompts before any mainnet deployment. The demo needs ~`LP_USDG` (500) USDG on the owner
-wallet and ~`INVOICE_USDG` (100) on the buyer wallet; all three wallets need gas. Demo transaction hashes land in
+deployer has no gas, and prompts before any mainnet deployment. The demo needs ~`LP_USDG` USDG on the owner
+wallet and ~`INVOICE_USDG` on the buyer wallet; all three wallets need gas. Demo transaction hashes land in
 `broadcast/` — put them in your submission.
+
+### Recorded testnet run — Arbitrum Sepolia, 13 transactions
+
+This is a real run against the deployed contracts above, not a rehearsal. Amounts are small because the demo
+wallet holds what the faucet gives (100 USDG per wallet per day); the mechanics are identical at any size.
+
+| Step | Result |
+|---|---|
+| LP deposit | 70 USDG into the pool |
+| Invoice #1 created | 14 USDG in two milestones (30% / 70%), due in 14 and 30 days |
+| Buyer funded | 14 USDG locked in escrow |
+| Instant advance | pool paid the seller **12.94 USDG** for a **14.00 USDG** receivable — a **757 bps** discount |
+| Milestones delivered | both settled; invoice status `Closed`, `remaining = 0` |
+| Pool after settlement | **71.06 USDG** total assets, 0 still deployed |
+| Share price | **1.0151 USDG** per pool share — the LP position earned the 757 bps spread |
+| Reputation written | seller `(clean 2, disputed 0, defaulted 0)` |
+
+The pool bought the receivable at 12.94 USDG, was owed 14.00 USDG by the escrow, received it in full, and its
+holders ended up with a 1.51% gain on a 70 USDG position. `advances(1)` on-chain reads
+`cost 12.9416 / face 14.0 / costReleased 12.9416 / faceSettled 14.0` — the whole cost basis retired.
+
+Transaction hashes, in order, on [Arbitrum Sepolia](https://sepolia-rollup.arbitrum.io):
+
+| Action | Hash |
+|---|---|
+| `setApprovedArbiter` | `0x0adab77747a066f6fd8fc1844907d94f5177be0f6a1cbd064147182bbc41870b` |
+| `setSellerCreditLimit` | `0xc8ce97e10f391ff3015dfacd100428b6d83e1e3888f00418d0d8d8847180f246` |
+| LP `approve` + `deposit` | `0x8360b27a…`, `0x3c72727220a1abbea1c44a8908f6b7377e79b088fb977d2869a73b5deb7779ac` |
+| `createInvoice` | `0x900a803dca6d9a6f550e354b42e45a4458ccd7eb6d6ec2d8d2e1ac4e87591aa2` |
+| buyer `approve` + `fund` | `0x4f9654af…`, `0x8ab49e8373bb4fa555815395427673f19a660429d79f9b18b9cbc52b7c547fc4` |
+| pool `approve` + `advance` | `0xde14c6c0…`, `0x4e1d538fab18ead6dd0cb627ed8a85dd47895c145e06288be115b9e430f56273` |
+| `submitMilestone` ×2 | `0x4fde350e…`, `0x48cfb9fa7ed12285085c06ffd5b211b660d49661c80cee13b00097e19692ca91` |
+| `approveMilestone` ×2 | `0x0ec10b5c…`, `0x49c6db7b36544a7fe919db67e8a43e0fead80216d8ca3268a5da79856c85ee58` |
+
+The data persists on-chain, so the frontend at `Invoice-escrow/artifacts/invoice-escrow` shows it to anyone who
+opens the app — no keys, no setup, nothing to re-run.
 
 Local rehearsal (no faucet needed): run `anvil`, then
 `DEPLOY_MOCK_USDG=true ./deploy.sh deploy http://127.0.0.1:8545` and `MOCK_MINT=true ./deploy.sh demo http://127.0.0.1:8545`.
@@ -240,7 +276,7 @@ The report's leads are honest trails rather than finished exploits, and several 
 the fee **rate** is snapshotted per invoice but the **recipient** is still live (an owner rotation reroutes fees
 on open invoices); `quote` runs every gate except the two caps and the idle-cash check, so it can price an
 invoice `advance` then refuses; `previewRedeem` quotes deployed value that `redeem` will not allow while the
-reserve is held; the virtual-share offset of 6 is only 0.2% of a 500 USDG first deposit (the repo's own donation
+reserve is held; the virtual-share offset of 6 is only 0.2% of a 100 USDG first deposit (the repo's own donation
 test shows no extraction path); the seller names the arbiter and the buyer never consents; `cancelInvoice`
 leaves `remaining` populated; reputation counters are `uint32` with no reset; and same-block deposits still dilute
 settlement profit (MEV-dependent).
